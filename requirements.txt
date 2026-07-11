@@ -1,0 +1,17 @@
+# Core fine-tuning stack (install unsloth from git on Colab for the latest CUDA-matched build,
+# see notebooks/ for the exact Colab install cells)
+unsloth
+trl<0.9.0
+peft
+accelerate
+bitsandbytes
+transformers
+datasets
+torch
+
+# Demo / inference
+gradio
+
+# Utilities
+sentencepiece
+protobuf
