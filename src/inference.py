@@ -22,7 +22,7 @@ import argparse
 import os
 
 # Same username you set as HF_USERNAME in the notebooks - update this once your models are pushed.
-HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "your-hf-username")
+HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "abhishek15016")
 DEFAULT_MODEL_PATH = f"{HF_USERNAME}/prepmind-dpo-qwen2.5-1.5b"
 
 HF_TOKEN = os.environ.get("HF_TOKEN")  # only needed if the Hub repo is private

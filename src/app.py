@@ -22,7 +22,7 @@ import os
 import gradio as gr
 
 # Same username you set as HF_USERNAME in the notebooks - update this once your models are pushed.
-HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "your-hf-username")
+HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "abhishek15016")
 DEFAULT_SFT_ADAPTER = f"{HF_USERNAME}/prepmind-sft-adapter"
 DEFAULT_DPO_ADAPTER = f"{HF_USERNAME}/prepmind-dpo-adapter"
 
