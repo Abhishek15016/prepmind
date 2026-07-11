@@ -1,16 +1,31 @@
 """
 Simple inference script for the final DPO-aligned PrepMind GenAI/Agentic AI assistant.
 
+The training notebooks (see notebooks/) push every stage's model to the Hugging Face Hub
+rather than only saving to Colab's local disk, since local Colab storage is wiped between
+sessions. By default this script loads the final merged DPO model from the Hub repo
+<HF_USERNAME>/prepmind-dpo-qwen2.5-1.5b - set HF_USERNAME below (or via the
+PREPMIND_HF_USERNAME env var) to the same username used in the notebooks.
+
 Usage:
-    python src/inference.py --model_path outputs/dpo_merged
-    python src/inference.py --model_path outputs/dpo_merged --question "What is DPO?"
-    python src/inference.py --model_path your-hf-username/prepmind-dpo-qwen2.5-1.5b
+    export PREPMIND_HF_USERNAME=your-hf-username   # or edit HF_USERNAME below
+    export HF_TOKEN=hf_xxx                          # only needed if the Hub repo is private
+    python src/inference.py
+    python src/inference.py --question "What is DPO?"
+    python src/inference.py --model_path outputs/dpo_merged   # load a local checkpoint instead
 
 With no --question, drops into an interactive loop. Works with either a merged model
 directory/repo, or a base model + LoRA adapter directory (pass --adapter_path).
 """
 
 import argparse
+import os
+
+# Same username you set as HF_USERNAME in the notebooks - update this once your models are pushed.
+HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "your-hf-username")
+DEFAULT_MODEL_PATH = f"{HF_USERNAME}/prepmind-dpo-qwen2.5-1.5b"
+
+HF_TOKEN = os.environ.get("HF_TOKEN")  # only needed if the Hub repo is private
 
 SYSTEM_PROMPT = (
     "You are a friendly expert tutor in Generative AI and Agentic AI. Explain concepts "
@@ -30,23 +45,24 @@ def load_model(model_path: str, adapter_path: str | None, max_seq_length: int = 
             max_seq_length=max_seq_length,
             dtype=None,
             load_in_4bit=True,
+            token=HF_TOKEN,
         )
         if adapter_path:
-            model.load_adapter(adapter_path)
+            model.load_adapter(adapter_path, token=HF_TOKEN)
         FastLanguageModel.for_inference(model)
         return model, tokenizer
     except ImportError:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, token=HF_TOKEN)
         model = AutoModelForCausalLM.from_pretrained(
-            model_path, torch_dtype=torch.bfloat16, device_map="auto"
+            model_path, torch_dtype=torch.bfloat16, device_map="auto", token=HF_TOKEN
         )
         if adapter_path:
             from peft import PeftModel
 
-            model = PeftModel.from_pretrained(model, adapter_path)
+            model = PeftModel.from_pretrained(model, adapter_path, token=HF_TOKEN)
         model.eval()
         return model, tokenizer
 
@@ -76,7 +92,7 @@ def main():
     parser = argparse.ArgumentParser(description="PrepMind GenAI/Agentic AI assistant inference")
     parser.add_argument(
         "--model_path",
-        default="outputs/dpo_merged",
+        default=DEFAULT_MODEL_PATH,
         help="Path or HF Hub repo id of the final (merged) DPO model, or the base model if using --adapter_path",
     )
     parser.add_argument(

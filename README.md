@@ -118,17 +118,38 @@ checkpointing. Full explanation in
 
 1. Open each notebook in `notebooks/` in Google Colab (`Runtime -> Change runtime type ->
    T4 GPU`) and run top to bottom, in order: `non_instruction_finetuning.ipynb` ->
-   `instruction_finetuning.ipynb` -> `dpo_alignment.ipynb`. Each notebook clones this repo
-   and saves its output adapter under `outputs/`, which the next notebook loads.
+   `instruction_finetuning.ipynb` -> `dpo_alignment.ipynb`. Each notebook clones this repo,
+   saves its output adapter locally to `outputs/` for that session, **and pushes it to the
+   Hugging Face Hub** (set `HF_USERNAME` in each notebook's setup cell to your own Hugging
+   Face username - same value in all three notebooks). The next notebook loads the previous
+   stage's adapter from the Hub, so the pipeline survives Colab disconnects and works even
+   if each stage is run in a separate session on a separate day.
 2. `dpo_alignment.ipynb` ends with a cell that launches the **side-by-side Gradio app**
    (`src/app.py`) with a public share link, so you can compare Base / SFT / DPO answers to
    any question in one screen.
-3. To run the comparison app or CLI locally after downloading the trained adapters:
+3. To run the comparison app or CLI locally (or in a fresh Colab session) after training:
    ```bash
    pip install -r requirements.txt
+   export PREPMIND_HF_USERNAME=your-hf-username   # same username used in the notebooks
+   export HF_TOKEN=hf_xxx                          # only needed if you pushed private repos
    python src/app.py          # side-by-side Gradio comparison
    python src/inference.py --question "What is DPO?"   # single-question CLI
    ```
+
+### Where outputs are saved
+
+| Artifact | Local (per Colab session, ephemeral) | Persisted (survives sessions) |
+|---|---|---|
+| Stage 1 adapter | `outputs/non_instruction_adapter/` | `huggingface.co/<HF_USERNAME>/prepmind-non-instruction-adapter` |
+| Stage 2 (SFT) adapter | `outputs/sft_adapter/` | `huggingface.co/<HF_USERNAME>/prepmind-sft-adapter` |
+| Stage 3 (DPO) adapter | `outputs/dpo_adapter/` | `huggingface.co/<HF_USERNAME>/prepmind-dpo-adapter` |
+| Stage 3 merged model (final artifact) | `outputs/dpo_merged/` | `huggingface.co/<HF_USERNAME>/prepmind-dpo-qwen2.5-1.5b` |
+
+`outputs/` is on Colab's local disk, so it's wiped on disconnect and is `.gitignore`d
+(trained weights don't belong in this git repo). The Hugging Face Hub repos are the
+durable copy - `src/inference.py` and `src/app.py` both load from the Hub by default. All
+three repos are pushed as **private** by default; make them public from your Hugging Face
+account settings if a grader needs to load them without your token.
 
 ## Training Screenshots / Logs
 

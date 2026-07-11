@@ -2,21 +2,31 @@
 Gradio demo: ask one question, see the Base model, the SFT (instruction fine-tuned) model,
 and the DPO-aligned model answer it side by side, all at once.
 
-Run after training all three stages (see notebooks/), with the adapters saved under
-outputs/ as produced by the notebooks:
-    outputs/sft_adapter/
-    outputs/dpo_adapter/
+Run after training all three stages (see notebooks/). By default this loads the SFT and
+DPO adapters from the Hugging Face Hub repos the notebooks push to
+(<HF_USERNAME>/prepmind-sft-adapter and <HF_USERNAME>/prepmind-dpo-adapter) rather than
+local outputs/, since local Colab storage doesn't survive between sessions. Set
+HF_USERNAME below (or the PREPMIND_HF_USERNAME env var) to the same username used in the
+notebooks.
 
 Usage:
+    export PREPMIND_HF_USERNAME=your-hf-username   # or edit HF_USERNAME below
+    export HF_TOKEN=hf_xxx                          # only needed if the Hub repos are private
     python src/app.py
-    python src/app.py --base_model unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit \
-                       --sft_adapter outputs/sft_adapter \
-                       --dpo_adapter outputs/dpo_adapter
+    python src/app.py --sft_adapter outputs/sft_adapter --dpo_adapter outputs/dpo_adapter  # local checkpoints instead
 """
 
 import argparse
+import os
 
 import gradio as gr
+
+# Same username you set as HF_USERNAME in the notebooks - update this once your models are pushed.
+HF_USERNAME = os.environ.get("PREPMIND_HF_USERNAME", "your-hf-username")
+DEFAULT_SFT_ADAPTER = f"{HF_USERNAME}/prepmind-sft-adapter"
+DEFAULT_DPO_ADAPTER = f"{HF_USERNAME}/prepmind-dpo-adapter"
+
+HF_TOKEN = os.environ.get("HF_TOKEN")  # only needed if the Hub repos are private
 
 SYSTEM_PROMPT = (
     "You are a friendly expert tutor in Generative AI and Agentic AI. Explain concepts "
@@ -42,17 +52,18 @@ def load_models(base_model: str, sft_adapter: str, dpo_adapter: str):
         max_seq_length=2048,
         dtype=None,
         load_in_4bit=True,
+        token=HF_TOKEN,
     )
 
     has_sft, has_dpo = False, False
     try:
-        model.load_adapter(sft_adapter, adapter_name="sft")
+        model.load_adapter(sft_adapter, adapter_name="sft", token=HF_TOKEN)
         has_sft = True
     except Exception as e:
         print(f"Could not load SFT adapter from {sft_adapter}: {e}")
 
     try:
-        model.load_adapter(dpo_adapter, adapter_name="dpo")
+        model.load_adapter(dpo_adapter, adapter_name="dpo", token=HF_TOKEN)
         has_dpo = True
     except Exception as e:
         print(f"Could not load DPO adapter from {dpo_adapter}: {e}")
@@ -97,8 +108,8 @@ def generate_with_adapter(model, tokenizer, question: str, adapter_name: str | N
 def main():
     parser = argparse.ArgumentParser(description="Base vs SFT vs DPO side-by-side comparison")
     parser.add_argument("--base_model", default="unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit")
-    parser.add_argument("--sft_adapter", default="outputs/sft_adapter")
-    parser.add_argument("--dpo_adapter", default="outputs/dpo_adapter")
+    parser.add_argument("--sft_adapter", default=DEFAULT_SFT_ADAPTER)
+    parser.add_argument("--dpo_adapter", default=DEFAULT_DPO_ADAPTER)
     parser.add_argument("--share", action="store_true", help="Create a public Gradio share link (useful on Colab)")
     args = parser.parse_args()
 
